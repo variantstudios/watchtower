@@ -597,151 +597,21 @@
       try {
         console.log('📹 Setting up camera...');
 
-        // Force enable camera APIs for Raspberry Pi
-        console.log('🔧 Checking camera APIs...');
-        console.log('navigator.getUserMedia:', navigator.getUserMedia);
-        console.log('navigator.webkitGetUserMedia:', navigator.webkitGetUserMedia);
-        console.log('navigator.mozGetUserMedia:', navigator.mozGetUserMedia);
-        console.log('navigator.mediaDevices:', navigator.mediaDevices);
-
-        // Create mediaDevices if it doesn't exist
-        if (!navigator.mediaDevices) {
-          console.log('🔧 Creating mediaDevices object...');
-          navigator.mediaDevices = {};
-        }
-
-        // Force create getUserMedia function
-        if (!navigator.mediaDevices.getUserMedia) {
-          console.log('🔧 Creating getUserMedia function...');
-
-          // Try multiple approaches to get camera access
-          if (navigator.getUserMedia) {
-            console.log('✅ Using navigator.getUserMedia');
-            navigator.mediaDevices.getUserMedia = function (constraints) {
-              return new Promise((resolve, reject) => {
-                navigator.getUserMedia(constraints, resolve, reject);
-              });
-            };
-          } else if (navigator.webkitGetUserMedia) {
-            console.log('✅ Using navigator.webkitGetUserMedia');
-            navigator.mediaDevices.getUserMedia = function (constraints) {
-              return new Promise((resolve, reject) => {
-                navigator.webkitGetUserMedia(constraints, resolve, reject);
-              });
-            };
-          } else if (navigator.mozGetUserMedia) {
-            console.log('✅ Using navigator.mozGetUserMedia');
-            navigator.mediaDevices.getUserMedia = function (constraints) {
-              return new Promise((resolve, reject) => {
-                navigator.mozGetUserMedia(constraints, resolve, reject);
-              });
-            };
-          } else {
-            // Last resort: try to create a mock getUserMedia that might work
-            console.log('⚠️ No camera API found, trying to create mock getUserMedia...');
-
-            // Try to access the camera through a different method
-            if (typeof MediaStream !== 'undefined') {
-              navigator.mediaDevices.getUserMedia = function (constraints) {
-                return new Promise((resolve, reject) => {
-                  // Try to access video devices directly
-                  if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
-                    navigator.mediaDevices.enumerateDevices()
-                      .then(devices => {
-                        const videoDevices = devices.filter(device => device.kind === 'videoinput');
-                        console.log('📹 Found video devices:', videoDevices);
-                        if (videoDevices.length > 0) {
-                          // Try to create a stream with the first video device
-                          const video = document.createElement('video');
-                          video.autoplay = true;
-                          video.muted = true;
-                          video.playsInline = true;
-
-                          // Try to set the video source
-                          if (navigator.mediaDevices.getUserMedia) {
-                            navigator.mediaDevices.getUserMedia(constraints)
-                              .then(resolve)
-                              .catch(reject);
-                          } else {
-                            reject(new Error('No camera access method available'));
-                          }
-                        } else {
-                          reject(new Error('No video devices found'));
-                        }
-                      })
-                      .catch(reject);
-                  } else {
-                    reject(new Error('No camera API available - try using Chromium browser with --use-fake-ui-for-media-stream flag'));
-                  }
-                });
-              };
-            } else {
-              throw new Error('No camera API available - try using Chromium browser with --use-fake-ui-for-media-stream flag');
-            }
-          }
-        }
-
-        // Also create enumerateDevices if it doesn't exist
-        if (!navigator.mediaDevices.enumerateDevices) {
-          navigator.mediaDevices.enumerateDevices = function () {
-            return Promise.resolve([]);
-          };
-        }
-
-        // List available video devices for debugging
-        try {
-          const devices = await navigator.mediaDevices.enumerateDevices();
-          const videoDevices = devices.filter(device => device.kind === 'videoinput');
-          console.log('📹 Available video devices:', videoDevices.length);
-          videoDevices.forEach((device, index) => {
-            console.log(`📹 Video device ${index}:`, device.label || `Camera ${index + 1}`);
-          });
-        } catch (err) {
-          console.log('📹 Could not enumerate devices:', err.message);
+        // Check if mediaDevices is supported
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error('Media devices not supported');
         }
 
         console.log('📹 Media devices supported, requesting camera access...');
         updateStatus("Requesting camera access...");
 
-        // Try different video constraints to find the webcam
-        let stream;
-        // Pi-optimized video constraints (lower resolution for better performance)
-        const videoConstraints = [
-          {
-            width: { ideal: 640 },
-            height: { ideal: 480 }
-          },
-          {
-            width: { ideal: 640 },
-            height: { ideal: 480 },
-            facingMode: 'user'
-          },
-          {
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          },
-          {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
             width: { ideal: 1280 },
             height: { ideal: 720 },
             facingMode: 'user'
           }
-        ];
-
-        for (let i = 0; i < videoConstraints.length; i++) {
-          try {
-            console.log(`📹 Trying video constraint ${i + 1}...`);
-            stream = await navigator.mediaDevices.getUserMedia({
-              video: videoConstraints[i]
-            });
-            console.log(`✅ Video constraint ${i + 1} worked!`);
-            break;
-          } catch (err) {
-            console.log(`❌ Video constraint ${i + 1} failed:`, err.message);
-            if (i === videoConstraints.length - 1) {
-              throw new Error(`All video constraints failed. Last error: ${err.message}`);
-            }
-          }
-        }
+        });
 
         if (!video) {
           throw new Error('Video element not found');
@@ -797,19 +667,10 @@
             errorDiv.innerHTML = `
               <div>
                 <div style="font-size: 48px; margin-bottom: 10px;">📹</div>
-                <div>Camera Access Required</div>
+                <div>Camera not available</div>
                 <div style="font-size: 14px; margin-top: 10px; color: #888;">
-                  <strong>🍓 Raspberry Pi Users:</strong><br>
-                  1. Try advanced browser: <code>./pi-launch-browser-advanced.sh</code><br>
-                  2. Or manual launch: <code>chromium-browser --use-fake-ui-for-media-stream --no-sandbox http://10.10.10.85:3000</code><br>
-                  3. Check webcam: <code>fswebcam --no-banner --device /dev/video1 test.jpg</code>
+                  Please allow camera access and refresh the page
                 </div>
-                <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px; background: #00ff88; color: #000; border: none; border-radius: 5px; cursor: pointer;">
-                  🔄 Retry Camera Access
-                </button>
-                <button onclick="testCameraAccess()" style="margin-top: 10px; padding: 10px 20px; background: #00ccff; color: #000; border: none; border-radius: 5px; cursor: pointer;">
-                  🧪 Test Camera API
-                </button>
               </div>
             `;
             videoContainer.appendChild(errorDiv);
@@ -1071,6 +932,7 @@
         setTimeout(() => requestAnimationFrame(detectAndProcess), delay);
 
         // Periodically update total images count (every 30 seconds)
+        const now = Date.now();
         if (!window.lastTotalUpdate || now - window.lastTotalUpdate > 30000) {
           updateTotalImagesCount();
           window.lastTotalUpdate = now;
@@ -1353,31 +1215,6 @@
           }
         }
       };
-
-      // Test camera access function
-      window.testCameraAccess = function () {
-        console.log('🧪 Testing camera access...');
-        console.log('navigator.mediaDevices:', navigator.mediaDevices);
-        console.log('navigator.getUserMedia:', navigator.getUserMedia);
-        console.log('navigator.webkitGetUserMedia:', navigator.webkitGetUserMedia);
-        console.log('navigator.mozGetUserMedia:', navigator.mozGetUserMedia);
-
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-          console.log('✅ MediaDevices API available');
-          navigator.mediaDevices.getUserMedia({ video: true })
-            .then(stream => {
-              console.log('✅ Camera access successful!', stream);
-              alert('✅ Camera access successful! Check console for details.');
-            })
-            .catch(err => {
-              console.error('❌ Camera access failed:', err);
-              alert('❌ Camera access failed: ' + err.message);
-            });
-        } else {
-          console.log('❌ MediaDevices API not available');
-          alert('❌ MediaDevices API not available. Try the advanced browser launch script.');
-        }
-      }
 
       // --- Helper function for VAPID key conversion ---
       function urlBase64ToUint8Array(base64String) {
