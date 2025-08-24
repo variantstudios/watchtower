@@ -1,4 +1,4 @@
 /node_modules
-/captures
+/public/recordings
 .env
 notes.md

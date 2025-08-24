@@ -602,16 +602,60 @@
           throw new Error('Media devices not supported');
         }
 
+        // List available video devices for debugging
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const videoDevices = devices.filter(device => device.kind === 'videoinput');
+          console.log('📹 Available video devices:', videoDevices.length);
+          videoDevices.forEach((device, index) => {
+            console.log(`📹 Video device ${index}:`, device.label || `Camera ${index + 1}`);
+          });
+        } catch (err) {
+          console.log('📹 Could not enumerate devices:', err.message);
+        }
+
         console.log('📹 Media devices supported, requesting camera access...');
         updateStatus("Requesting camera access...");
 
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
+        // Try different video constraints to find the webcam
+        let stream;
+        // Pi-optimized video constraints (lower resolution for better performance)
+        const videoConstraints = [
+          {
+            width: { ideal: 640 },
+            height: { ideal: 480 }
+          },
+          {
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            facingMode: 'user'
+          },
+          {
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          {
             width: { ideal: 1280 },
             height: { ideal: 720 },
             facingMode: 'user'
           }
-        });
+        ];
+
+        for (let i = 0; i < videoConstraints.length; i++) {
+          try {
+            console.log(`📹 Trying video constraint ${i + 1}...`);
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: videoConstraints[i]
+            });
+            console.log(`✅ Video constraint ${i + 1} worked!`);
+            break;
+          } catch (err) {
+            console.log(`❌ Video constraint ${i + 1} failed:`, err.message);
+            if (i === videoConstraints.length - 1) {
+              throw new Error(`All video constraints failed. Last error: ${err.message}`);
+            }
+          }
+        }
 
         if (!video) {
           throw new Error('Video element not found');
