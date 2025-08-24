@@ -613,7 +613,7 @@
         // Force create getUserMedia function
         if (!navigator.mediaDevices.getUserMedia) {
           console.log('🔧 Creating getUserMedia function...');
-          
+
           // Try multiple approaches to get camera access
           if (navigator.getUserMedia) {
             console.log('✅ Using navigator.getUserMedia');
@@ -639,7 +639,7 @@
           } else {
             // Last resort: try to create a mock getUserMedia that might work
             console.log('⚠️ No camera API found, trying to create mock getUserMedia...');
-            
+
             // Try to access the camera through a different method
             if (typeof MediaStream !== 'undefined') {
               navigator.mediaDevices.getUserMedia = function (constraints) {
@@ -656,7 +656,7 @@
                           video.autoplay = true;
                           video.muted = true;
                           video.playsInline = true;
-                          
+
                           // Try to set the video source
                           if (navigator.mediaDevices.getUserMedia) {
                             navigator.mediaDevices.getUserMedia(constraints)
@@ -683,7 +683,7 @@
 
         // Also create enumerateDevices if it doesn't exist
         if (!navigator.mediaDevices.enumerateDevices) {
-          navigator.mediaDevices.enumerateDevices = function() {
+          navigator.mediaDevices.enumerateDevices = function () {
             return Promise.resolve([]);
           };
         }
@@ -1312,13 +1312,13 @@
       };
 
       // Test camera access function
-      window.testCameraAccess = function() {
+      window.testCameraAccess = function () {
         console.log('🧪 Testing camera access...');
         console.log('navigator.mediaDevices:', navigator.mediaDevices);
         console.log('navigator.getUserMedia:', navigator.getUserMedia);
         console.log('navigator.webkitGetUserMedia:', navigator.webkitGetUserMedia);
         console.log('navigator.mozGetUserMedia:', navigator.mozGetUserMedia);
-        
+
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
           console.log('✅ MediaDevices API available');
           navigator.mediaDevices.getUserMedia({ video: true })
