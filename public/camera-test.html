@@ -1,204 +1,237 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Camera Test - Watchtower Live</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 20px;
-      background: #1a1a1a;
-      color: #fff;
-    }
-
-    .container {
-      background: #2a2a2a;
-      padding: 20px;
-      border-radius: 10px;
-      margin: 20px 0;
-    }
-
-    video {
-      width: 100%;
-      max-width: 640px;
-      border: 2px solid #00ff88;
-      border-radius: 10px;
-    }
-
-    button {
-      background: #00ff88;
-      color: #000;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 5px;
-      cursor: pointer;
-      margin: 10px 5px;
-      font-size: 16px;
-    }
-
-    button:hover {
-      background: #00cc66;
-    }
-
-    .status {
-      padding: 10px;
-      border-radius: 5px;
-      margin: 10px 0;
-    }
-
-    .success {
-      background: #00ff88;
-      color: #000;
-    }
-
-    .error {
-      background: #ff4757;
-      color: #fff;
-    }
-
-    .info {
-      background: #00ccff;
-      color: #000;
-    }
-
-    pre {
-      background: #333;
-      padding: 10px;
-      border-radius: 5px;
-      overflow-x: auto;
-    }
-  </style>
-</head>
-
-<body>
-  <h1>📹 Camera Test - Watchtower Live</h1>
-
-  <div class="container">
-    <h2>🔧 Camera API Status</h2>
-    <div id="apiStatus"></div>
-    <button onclick="checkAPIs()">🔍 Check Camera APIs</button>
-    <button onclick="testCamera()">📹 Test Camera Access</button>
-    <button onclick="enumerateDevices()">📋 List Devices</button>
-  </div>
-
-  <div class="container">
-    <h2>📹 Camera Preview</h2>
-    <video id="video" autoplay muted playsinline></video>
-    <div id="cameraStatus"></div>
-  </div>
-
-  <div class="container">
-    <h2>📊 Debug Information</h2>
-    <pre id="debugInfo"></pre>
-  </div>
-
-  <script>
-    function log(message, type = 'info') {
-      const debugInfo = document.getElementById('debugInfo');
-      const timestamp = new Date().toLocaleTimeString();
-      debugInfo.textContent += `[${timestamp}] ${message}\n`;
-      console.log(message);
-    }
-
-    function updateStatus(message, type = 'info') {
-      const statusDiv = document.getElementById('cameraStatus');
-      statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
-    }
-
-    function checkAPIs() {
-      log('🔍 Checking Camera APIs...');
-
-      const apis = {
-        'navigator.mediaDevices': navigator.mediaDevices,
-        'navigator.getUserMedia': navigator.getUserMedia,
-        'navigator.webkitGetUserMedia': navigator.webkitGetUserMedia,
-        'navigator.mozGetUserMedia': navigator.mozGetUserMedia,
-        'MediaStream': typeof MediaStream,
-        'navigator.mediaDevices.getUserMedia': navigator.mediaDevices?.getUserMedia
-      };
-
-      let statusHtml = '';
-      for (const [api, value] of Object.entries(apis)) {
-        const available = value ? '✅ Available' : '❌ Not Available';
-        statusHtml += `<div>${api}: ${available}</div>`;
-        log(`${api}: ${value ? 'Available' : 'Not Available'}`);
-      }
-
-      document.getElementById('apiStatus').innerHTML = statusHtml;
-    }
-
-    async function enumerateDevices() {
-      log('📋 Enumerating devices...');
-
-      try {
-        if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
-          const devices = await navigator.mediaDevices.enumerateDevices();
-          const videoDevices = devices.filter(device => device.kind === 'videoinput');
-
-          log(`Found ${devices.length} total devices`);
-          log(`Found ${videoDevices.length} video devices`);
-
-          videoDevices.forEach((device, index) => {
-            log(`Video device ${index + 1}: ${device.label || 'Unknown'} (${device.deviceId})`);
-          });
-
-          updateStatus(`Found ${videoDevices.length} video devices`, videoDevices.length > 0 ? 'success' : 'error');
-        } else {
-          log('❌ enumerateDevices not available');
-          updateStatus('enumerateDevices not available', 'error');
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera Test - Watchtower Live</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
         }
-      } catch (error) {
-        log(`❌ Error enumerating devices: ${error.message}`);
-        updateStatus(`Error: ${error.message}`, 'error');
-      }
-    }
+        .container {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        video {
+            width: 100%;
+            max-width: 640px;
+            border: 2px solid #00ff88;
+            border-radius: 5px;
+        }
+        button {
+            background: #00ff88;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #00cc66;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .success { background: #00ff88; color: #000; }
+        .error { background: #ff4757; color: #fff; }
+        .info { background: #00ccff; color: #000; }
+        pre {
+            background: #333;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>📹 Camera Test - Watchtower Live</h1>
+    
+    <div class="container">
+        <h2>🔧 Camera API Detection</h2>
+        <div id="apiStatus"></div>
+        <button onclick="testCameraAPIs()">🔍 Test Camera APIs</button>
+    </div>
 
-    async function testCamera() {
-      log('📹 Testing camera access...');
-      updateStatus('Testing camera access...', 'info');
+    <div class="container">
+        <h2>📹 Camera Access Test</h2>
+        <div id="cameraStatus" class="status info">Click "Start Camera" to test camera access</div>
+        <button onclick="startCamera()">🎥 Start Camera</button>
+        <button onclick="stopCamera()">⏹️ Stop Camera</button>
+        <video id="video" autoplay muted playsinline></video>
+    </div>
 
-      try {
-        // Try to get camera stream
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: { ideal: 640 },
-            height: { ideal: 480 }
-          }
+    <div class="container">
+        <h2>📋 Device Information</h2>
+        <div id="deviceInfo"></div>
+        <button onclick="getDeviceInfo()">📱 Get Device Info</button>
+    </div>
+
+    <div class="container">
+        <h2>🔍 Debug Information</h2>
+        <pre id="debugInfo"></pre>
+        <button onclick="clearDebug()">🗑️ Clear Debug</button>
+    </div>
+
+    <script>
+        let videoStream = null;
+
+        function log(message, type = 'info') {
+            const debugInfo = document.getElementById('debugInfo');
+            const timestamp = new Date().toLocaleTimeString();
+            debugInfo.textContent += `[${timestamp}] ${message}\n`;
+            console.log(message);
+        }
+
+        function clearDebug() {
+            document.getElementById('debugInfo').textContent = '';
+        }
+
+        function updateStatus(elementId, message, className) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${className}`;
+        }
+
+        function testCameraAPIs() {
+            log('🧪 Testing Camera APIs...');
+            
+            const apiStatus = document.getElementById('apiStatus');
+            let status = '<h3>Camera API Status:</h3>';
+            
+            // Test navigator.getUserMedia (old API)
+            status += `<p>navigator.getUserMedia: ${navigator.getUserMedia ? '✅ Available' : '❌ Not Available'}</p>`;
+            
+            // Test navigator.webkitGetUserMedia
+            status += `<p>navigator.webkitGetUserMedia: ${navigator.webkitGetUserMedia ? '✅ Available' : '❌ Not Available'}</p>`;
+            
+            // Test navigator.mozGetUserMedia
+            status += `<p>navigator.mozGetUserMedia: ${navigator.mozGetUserMedia ? '✅ Available' : '❌ Not Available'}</p>`;
+            
+            // Test navigator.mediaDevices
+            status += `<p>navigator.mediaDevices: ${navigator.mediaDevices ? '✅ Available' : '❌ Not Available'}</p>`;
+            
+            // Test navigator.mediaDevices.getUserMedia
+            if (navigator.mediaDevices) {
+                status += `<p>navigator.mediaDevices.getUserMedia: ${navigator.mediaDevices.getUserMedia ? '✅ Available' : '❌ Not Available'}</p>`;
+                
+                // Test enumerateDevices
+                status += `<p>navigator.mediaDevices.enumerateDevices: ${navigator.mediaDevices.enumerateDevices ? '✅ Available' : '❌ Not Available'}</p>`;
+            }
+            
+            apiStatus.innerHTML = status;
+            log('✅ Camera API test complete');
+        }
+
+        async function getDeviceInfo() {
+            log('📱 Getting device information...');
+            
+            const deviceInfo = document.getElementById('deviceInfo');
+            let info = '<h3>Device Information:</h3>';
+            
+            // Basic device info
+            info += `<p><strong>User Agent:</strong> ${navigator.userAgent}</p>`;
+            info += `<p><strong>Platform:</strong> ${navigator.platform}</p>`;
+            info += `<p><strong>Language:</strong> ${navigator.language}</p>`;
+            
+            // Camera devices
+            if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+                try {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                    
+                    info += `<p><strong>Video Devices Found:</strong> ${videoDevices.length}</p>`;
+                    
+                    videoDevices.forEach((device, index) => {
+                        info += `<p>Device ${index + 1}: ${device.label || 'Unknown Camera'} (${device.deviceId})</p>`;
+                    });
+                    
+                    log(`📹 Found ${videoDevices.length} video devices`);
+                } catch (error) {
+                    info += `<p><strong>Error enumerating devices:</strong> ${error.message}</p>`;
+                    log(`❌ Error enumerating devices: ${error.message}`);
+                }
+            } else {
+                info += `<p><strong>Device enumeration not available</strong></p>`;
+                log('❌ Device enumeration not available');
+            }
+            
+            deviceInfo.innerHTML = info;
+        }
+
+        async function startCamera() {
+            log('🎥 Starting camera...');
+            updateStatus('cameraStatus', 'Starting camera...', 'info');
+            
+            try {
+                // Try to get camera stream
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        frameRate: { ideal: 30 }
+                    }
+                });
+                
+                videoStream = stream;
+                const video = document.getElementById('video');
+                video.srcObject = stream;
+                
+                updateStatus('cameraStatus', '✅ Camera started successfully!', 'success');
+                log('✅ Camera started successfully');
+                
+                // Log stream info
+                const tracks = stream.getVideoTracks();
+                if (tracks.length > 0) {
+                    const settings = tracks[0].getSettings();
+                    log(`📹 Video track settings: ${JSON.stringify(settings)}`);
+                }
+                
+            } catch (error) {
+                updateStatus('cameraStatus', `❌ Camera error: ${error.message}`, 'error');
+                log(`❌ Camera error: ${error.message}`);
+                
+                // Try to provide helpful error information
+                if (error.name === 'NotAllowedError') {
+                    log('💡 This might be a permission issue. Try using the browser launch script with camera flags.');
+                } else if (error.name === 'NotFoundError') {
+                    log('💡 No camera found. Check if webcam is connected and not in use by another application.');
+                } else if (error.name === 'NotReadableError') {
+                    log('💡 Camera is in use by another application. Try closing other camera applications.');
+                }
+            }
+        }
+
+        function stopCamera() {
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+                videoStream = null;
+                
+                const video = document.getElementById('video');
+                video.srcObject = null;
+                
+                updateStatus('cameraStatus', '⏹️ Camera stopped', 'info');
+                log('⏹️ Camera stopped');
+            }
+        }
+
+        // Auto-run tests on page load
+        window.addEventListener('load', () => {
+            log('🚀 Camera test page loaded');
+            testCameraAPIs();
+            getDeviceInfo();
         });
-
-        log('✅ Camera access successful!');
-        updateStatus('Camera access successful!', 'success');
-
-        // Display the stream
-        const video = document.getElementById('video');
-        video.srcObject = stream;
-
-        // Log stream details
-        const tracks = stream.getTracks();
-        tracks.forEach(track => {
-          log(`Track: ${track.kind} - ${track.label}`);
-          if (track.getSettings) {
-            const settings = track.getSettings();
-            log(`Settings: ${JSON.stringify(settings)}`);
-          }
-        });
-
-      } catch (error) {
-        log(`❌ Camera access failed: ${error.message}`);
-        updateStatus(`Camera access failed: ${error.message}`, 'error');
-      }
-    }
-
-    // Auto-check APIs on load
-    window.addEventListener('load', () => {
-      log('🚀 Camera test page loaded');
-      checkAPIs();
-    });
-  </script>
+    </script>
 </body>
-
 </html>
