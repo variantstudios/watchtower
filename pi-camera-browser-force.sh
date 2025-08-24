@@ -16,7 +16,7 @@ sleep 2
 # Create a custom preferences directory
 PREFS_DIR="/tmp/chrome-force-camera"
 rm -rf "$PREFS_DIR"
-mkdir -p "$PREFS_DIR"
+mkdir -p "$PREFS_DIR/Default"
 
 # Create custom preferences file to force camera permissions
 cat > "$PREFS_DIR/Default/Preferences" << 'EOF'
