@@ -597,36 +597,87 @@
       try {
         console.log('📹 Setting up camera...');
 
-        // Check if mediaDevices is supported and create fallbacks
+        // Force enable camera APIs for Raspberry Pi
+        console.log('🔧 Checking camera APIs...');
+        console.log('navigator.getUserMedia:', navigator.getUserMedia);
+        console.log('navigator.webkitGetUserMedia:', navigator.webkitGetUserMedia);
+        console.log('navigator.mozGetUserMedia:', navigator.mozGetUserMedia);
+        console.log('navigator.mediaDevices:', navigator.mediaDevices);
+
+        // Create mediaDevices if it doesn't exist
         if (!navigator.mediaDevices) {
-          console.log('🔧 MediaDevices not available, creating fallback...');
+          console.log('🔧 Creating mediaDevices object...');
           navigator.mediaDevices = {};
         }
 
+        // Force create getUserMedia function
         if (!navigator.mediaDevices.getUserMedia) {
-          console.log('🔧 getUserMedia not available, creating fallback...');
+          console.log('🔧 Creating getUserMedia function...');
 
-          // Try to use the old getUserMedia API
+          // Try multiple approaches to get camera access
           if (navigator.getUserMedia) {
+            console.log('✅ Using navigator.getUserMedia');
             navigator.mediaDevices.getUserMedia = function (constraints) {
               return new Promise((resolve, reject) => {
                 navigator.getUserMedia(constraints, resolve, reject);
               });
             };
           } else if (navigator.webkitGetUserMedia) {
+            console.log('✅ Using navigator.webkitGetUserMedia');
             navigator.mediaDevices.getUserMedia = function (constraints) {
               return new Promise((resolve, reject) => {
                 navigator.webkitGetUserMedia(constraints, resolve, reject);
               });
             };
           } else if (navigator.mozGetUserMedia) {
+            console.log('✅ Using navigator.mozGetUserMedia');
             navigator.mediaDevices.getUserMedia = function (constraints) {
               return new Promise((resolve, reject) => {
                 navigator.mozGetUserMedia(constraints, resolve, reject);
               });
             };
           } else {
-            throw new Error('No camera API available - try using Chromium browser with --use-fake-ui-for-media-stream flag');
+            // Last resort: try to create a mock getUserMedia that might work
+            console.log('⚠️ No camera API found, trying to create mock getUserMedia...');
+
+            // Try to access the camera through a different method
+            if (typeof MediaStream !== 'undefined') {
+              navigator.mediaDevices.getUserMedia = function (constraints) {
+                return new Promise((resolve, reject) => {
+                  // Try to access video devices directly
+                  if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+                    navigator.mediaDevices.enumerateDevices()
+                      .then(devices => {
+                        const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                        console.log('📹 Found video devices:', videoDevices);
+                        if (videoDevices.length > 0) {
+                          // Try to create a stream with the first video device
+                          const video = document.createElement('video');
+                          video.autoplay = true;
+                          video.muted = true;
+                          video.playsInline = true;
+
+                          // Try to set the video source
+                          if (navigator.mediaDevices.getUserMedia) {
+                            navigator.mediaDevices.getUserMedia(constraints)
+                              .then(resolve)
+                              .catch(reject);
+                          } else {
+                            reject(new Error('No camera access method available'));
+                          }
+                        } else {
+                          reject(new Error('No video devices found'));
+                        }
+                      })
+                      .catch(reject);
+                  } else {
+                    reject(new Error('No camera API available - try using Chromium browser with --use-fake-ui-for-media-stream flag'));
+                  }
+                });
+              };
+            } else {
+              throw new Error('No camera API available - try using Chromium browser with --use-fake-ui-for-media-stream flag');
+            }
           }
         }
 
