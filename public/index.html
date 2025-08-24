@@ -593,191 +593,196 @@
     }
 
     // --- Webcam setup ---
-    window.setupCamera = async function () {
-      try {
-        console.log('📹 Setting up camera...');
+    window.setupCamera = function () {
+      return new Promise(async (resolve, reject) => {
+        try {
+          console.log('📹 Setting up camera...');
 
-        // Force enable camera APIs for Raspberry Pi
-        console.log('🔧 Checking camera APIs...');
-        console.log('navigator.getUserMedia:', navigator.getUserMedia);
-        console.log('navigator.webkitGetUserMedia:', navigator.webkitGetUserMedia);
-        console.log('navigator.mozGetUserMedia:', navigator.mozGetUserMedia);
-        console.log('navigator.mediaDevices:', navigator.mediaDevices);
+          // Force enable camera APIs for Raspberry Pi
+          console.log('🔧 Checking camera APIs...');
+          console.log('navigator.getUserMedia:', navigator.getUserMedia);
+          console.log('navigator.webkitGetUserMedia:', navigator.webkitGetUserMedia);
+          console.log('navigator.mozGetUserMedia:', navigator.mozGetUserMedia);
+          console.log('navigator.mediaDevices:', navigator.mediaDevices);
 
-        // Create mediaDevices if it doesn't exist
-        if (!navigator.mediaDevices) {
-          console.log('🔧 Creating mediaDevices object...');
-          navigator.mediaDevices = {};
-        }
+          // Create mediaDevices if it doesn't exist
+          if (!navigator.mediaDevices) {
+            console.log('🔧 Creating mediaDevices object...');
+            navigator.mediaDevices = {};
+          }
 
-        // Force create getUserMedia function
-        if (!navigator.mediaDevices.getUserMedia) {
-          console.log('🔧 Creating getUserMedia function...');
+          // Force create getUserMedia function
+          if (!navigator.mediaDevices.getUserMedia) {
+            console.log('🔧 Creating getUserMedia function...');
 
-          // Try multiple approaches to get camera access
-          if (navigator.getUserMedia) {
-            console.log('✅ Using navigator.getUserMedia');
-            navigator.mediaDevices.getUserMedia = function (constraints) {
-              return new Promise((resolve, reject) => {
-                navigator.getUserMedia(constraints, resolve, reject);
-              });
-            };
-          } else if (navigator.webkitGetUserMedia) {
-            console.log('✅ Using navigator.webkitGetUserMedia');
-            navigator.mediaDevices.getUserMedia = function (constraints) {
-              return new Promise((resolve, reject) => {
-                navigator.webkitGetUserMedia(constraints, resolve, reject);
-              });
-            };
-          } else if (navigator.mozGetUserMedia) {
-            console.log('✅ Using navigator.mozGetUserMedia');
-            navigator.mediaDevices.getUserMedia = function (constraints) {
-              return new Promise((resolve, reject) => {
-                navigator.mozGetUserMedia(constraints, resolve, reject);
-              });
-            };
-          } else {
-            // Last resort: try to create a mock getUserMedia that might work
-            console.log('⚠️ No camera API found, trying to create mock getUserMedia...');
-
-            // Try to access the camera through a different method
-            if (typeof MediaStream !== 'undefined') {
+            // Try multiple approaches to get camera access
+            if (navigator.getUserMedia) {
+              console.log('✅ Using navigator.getUserMedia');
               navigator.mediaDevices.getUserMedia = function (constraints) {
                 return new Promise((resolve, reject) => {
-                  // Try to access video devices directly
-                  if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
-                    navigator.mediaDevices.enumerateDevices()
-                      .then(devices => {
-                        const videoDevices = devices.filter(device => device.kind === 'videoinput');
-                        console.log('📹 Found video devices:', videoDevices);
-                        if (videoDevices.length > 0) {
-                          // Try to create a stream with the first video device
-                          const video = document.createElement('video');
-                          video.autoplay = true;
-                          video.muted = true;
-                          video.playsInline = true;
-
-                          // Try to set the video source
-                          if (navigator.mediaDevices.getUserMedia) {
-                            navigator.mediaDevices.getUserMedia(constraints)
-                              .then(resolve)
-                              .catch(reject);
-                          } else {
-                            reject(new Error('No camera access method available'));
-                          }
-                        } else {
-                          reject(new Error('No video devices found'));
-                        }
-                      })
-                      .catch(reject);
-                  } else {
-                    reject(new Error('No camera API available - try using Chromium browser with --use-fake-ui-for-media-stream flag'));
-                  }
+                  navigator.getUserMedia(constraints, resolve, reject);
+                });
+              };
+            } else if (navigator.webkitGetUserMedia) {
+              console.log('✅ Using navigator.webkitGetUserMedia');
+              navigator.mediaDevices.getUserMedia = function (constraints) {
+                return new Promise((resolve, reject) => {
+                  navigator.webkitGetUserMedia(constraints, resolve, reject);
+                });
+              };
+            } else if (navigator.mozGetUserMedia) {
+              console.log('✅ Using navigator.mozGetUserMedia');
+              navigator.mediaDevices.getUserMedia = function (constraints) {
+                return new Promise((resolve, reject) => {
+                  navigator.mozGetUserMedia(constraints, resolve, reject);
                 });
               };
             } else {
-              throw new Error('No camera API available - try using Chromium browser with --use-fake-ui-for-media-stream flag');
+              // Last resort: try to create a mock getUserMedia that might work
+              console.log('⚠️ No camera API found, trying to create mock getUserMedia...');
+
+              // Try to access the camera through a different method
+              if (typeof MediaStream !== 'undefined') {
+                navigator.mediaDevices.getUserMedia = function (constraints) {
+                  return new Promise((resolve, reject) => {
+                    // Try to access video devices directly
+                    if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+                      navigator.mediaDevices.enumerateDevices()
+                        .then(devices => {
+                          const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                          console.log('📹 Found video devices:', videoDevices);
+                          if (videoDevices.length > 0) {
+                            // Try to create a stream with the first video device
+                            const video = document.createElement('video');
+                            video.autoplay = true;
+                            video.muted = true;
+                            video.playsInline = true;
+
+                            // Try to set the video source
+                            if (navigator.mediaDevices.getUserMedia) {
+                              navigator.mediaDevices.getUserMedia(constraints)
+                                .then(resolve)
+                                .catch(reject);
+                            } else {
+                              reject(new Error('No camera access method available'));
+                            }
+                          } else {
+                            reject(new Error('No video devices found'));
+                          }
+                        })
+                        .catch(reject);
+                    } else {
+                      reject(new Error('No camera API available - try using Chromium browser with --use-fake-ui-for-media-stream flag'));
+                    }
+                  });
+                };
+              } else {
+                throw new Error('No camera API available - try using Chromium browser with --use-fake-ui-for-media-stream flag');
+              }
             }
           }
-        }
 
-        // Also create enumerateDevices if it doesn't exist
-        if (!navigator.mediaDevices.enumerateDevices) {
-          navigator.mediaDevices.enumerateDevices = function () {
-            return Promise.resolve([]);
-          };
-        }
-
-        // Try to force detect video devices
-        console.log('📹 Available video devices: 0');
-        if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
-          navigator.mediaDevices.enumerateDevices()
-            .then(devices => {
-              const videoDevices = devices.filter(device => device.kind === 'videoinput');
-              console.log('📹 Found video devices:', videoDevices);
-            })
-            .catch(err => {
-              console.log('❌ Error enumerating devices:', err);
-            });
-        }
-
-        console.log('📹 Media devices supported, requesting camera access...');
-
-        // Try multiple video constraints for Raspberry Pi compatibility
-        const videoConstraints = [
-          // Pi-optimized resolutions
-          { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 } },
-          { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
-          // Fallback constraints
-          { width: { min: 320, ideal: 640, max: 1280 }, height: { min: 240, ideal: 480, max: 720 } },
-          { video: true } // Most basic constraint
-        ];
-
-        let constraintIndex = 0;
-        const tryNextConstraint = () => {
-          if (constraintIndex >= videoConstraints.length) {
-            throw new Error('All video constraints failed. Last error: No video devices found');
+          // Also create enumerateDevices if it doesn't exist
+          if (!navigator.mediaDevices.enumerateDevices) {
+            navigator.mediaDevices.enumerateDevices = function () {
+              return Promise.resolve([]);
+            };
           }
 
-          const constraint = videoConstraints[constraintIndex];
-          console.log(`📹 Trying video constraint ${constraintIndex + 1}...`);
-          constraintIndex++;
-
-          return navigator.mediaDevices.getUserMedia({ video: constraint })
-            .catch(error => {
-              console.log(`❌ Video constraint ${constraintIndex} failed:`, error.message);
-              return tryNextConstraint();
-            });
-        };
-
-        tryNextConstraint()
-          .then(stream => {
-            console.log('📹 Video stream set, playing video...');
-            video.srcObject = stream;
-            video.play()
-              .then(() => {
-                console.log('📹 Video playing successfully');
-                // Set up canvas for detection overlay
-                const canvas = document.getElementById('overlay');
-                const ctx = canvas.getContext('2d');
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                console.log('📹 Canvas setup:', canvas.width + 'x' + canvas.height);
-                resolve();
+          // Try to force detect video devices
+          console.log('📹 Available video devices: 0');
+          if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+            navigator.mediaDevices.enumerateDevices()
+              .then(devices => {
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                console.log('📹 Found video devices:', videoDevices);
               })
               .catch(err => {
-                console.error('❌ Video play failed:', err);
-                reject(err);
+                console.log('❌ Error enumerating devices:', err);
               });
-          })
-          .catch(err => {
-            console.error('Camera error:', err);
-            reject(err);
-          });
+          }
 
-        // Wait for video metadata to load
-        // Set up canvas overlay when video is ready
-        const setupOverlay = () => {
-          if (!overlay || !video) return;
+          console.log('📹 Media devices supported, requesting camera access...');
 
-          overlay.width = video.videoWidth;
-          overlay.height = video.videoHeight;
-          overlay.style.width = '100%';
-          overlay.style.height = '100%';
-          console.log(`📹 Canvas setup: ${video.videoWidth}x${video.videoHeight}`);
-        };
+          // Try multiple video constraints for Raspberry Pi compatibility
+          const videoConstraints = [
+            // Pi-optimized resolutions
+            { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 } },
+            { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
+            // Fallback constraints
+            { width: { min: 320, ideal: 640, max: 1280 }, height: { min: 240, ideal: 480, max: 720 } },
+            { video: true } // Most basic constraint
+          ];
 
-        video.addEventListener('loadedmetadata', setupOverlay);
-        video.addEventListener('resize', setupOverlay);
+          let constraintIndex = 0;
+          const tryNextConstraint = () => {
+            if (constraintIndex >= videoConstraints.length) {
+              throw new Error('All video constraints failed. Last error: No video devices found');
+            }
 
-        // Also setup after a short delay to ensure video dimensions are stable
-        setTimeout(setupOverlay, 500);
+            const constraint = videoConstraints[constraintIndex];
+            console.log(`📹 Trying video constraint ${constraintIndex + 1}...`);
+            constraintIndex++;
 
-        console.log('📹 Camera setup complete!');
-        updateStatus("Camera ready!");
-      } catch (err) {
-        updateStatus(`Camera error: ${err.message}`);
-        console.error("Camera error:", err);
+            return navigator.mediaDevices.getUserMedia({ video: constraint })
+              .catch(error => {
+                console.log(`❌ Video constraint ${constraintIndex} failed:`, error.message);
+                return tryNextConstraint();
+              });
+          };
+
+          tryNextConstraint()
+            .then(stream => {
+              console.log('📹 Video stream set, playing video...');
+              video.srcObject = stream;
+              video.play()
+                .then(() => {
+                  console.log('📹 Video playing successfully');
+                  // Set up canvas for detection overlay
+                  const canvas = document.getElementById('overlay');
+                  const ctx = canvas.getContext('2d');
+                  canvas.width = video.videoWidth;
+                  canvas.height = video.videoHeight;
+                  console.log('📹 Canvas setup:', canvas.width + 'x' + canvas.height);
+                  
+                  // Wait for video metadata to load
+                  // Set up canvas overlay when video is ready
+                  const setupOverlay = () => {
+                    if (!overlay || !video) return;
+
+                    overlay.width = video.videoWidth;
+                    overlay.height = video.videoHeight;
+                    overlay.style.width = '100%';
+                    overlay.style.height = '100%';
+                    console.log(`📹 Canvas setup: ${video.videoWidth}x${video.videoHeight}`);
+                  };
+
+                  video.addEventListener('loadedmetadata', setupOverlay);
+                  video.addEventListener('resize', setupOverlay);
+
+                  // Also setup after a short delay to ensure video dimensions are stable
+                  setTimeout(setupOverlay, 500);
+
+                  console.log('📹 Camera setup complete!');
+                  updateStatus("Camera ready!");
+                  resolve();
+                })
+                .catch(err => {
+                  console.error('❌ Video play failed:', err);
+                  reject(err);
+                });
+            })
+            .catch(err => {
+              console.error('Camera error:', err);
+              reject(err);
+            });
+        } catch (err) {
+          updateStatus(`Camera error: ${err.message}`);
+          console.error("Camera error:", err);
+          reject(err);
+        }
+      });
+    };
 
         // Show a placeholder or error message in the video area
         if (video) {
@@ -888,28 +893,28 @@
           }
         }
       });
+    }
 
+    // --- TensorFlow person detection ---
+    window.loadModel = async function () {
+      try {
+        console.log('🤖 Starting to load AI detection model...');
+        console.log('🤖 cocoSsd available:', typeof cocoSsd);
+        console.log('🤖 tf available:', typeof tf);
 
-      // --- TensorFlow person detection ---
-      window.loadModel = async function () {
-        try {
-          console.log('🤖 Starting to load AI detection model...');
-          console.log('🤖 cocoSsd available:', typeof cocoSsd);
-          console.log('🤖 tf available:', typeof tf);
-
-          if (typeof cocoSsd === 'undefined') {
-            throw new Error('cocoSsd is not available - TensorFlow.js may not be loaded');
-          }
-
-          updateStatus("Loading AI detection model...");
-          model = await cocoSsd.load({ base: "lite_mobilenet_v2" });
-          console.log('✅ AI model loaded successfully!', model);
-          updateStatus("AI model loaded successfully!");
-        } catch (err) {
-          console.error("❌ Model loading error:", err);
-          updateStatus("Error loading AI model");
+        if (typeof cocoSsd === 'undefined') {
+          throw new Error('cocoSsd is not available - TensorFlow.js may not be loaded');
         }
+
+        updateStatus("Loading AI detection model...");
+        model = await cocoSsd.load({ base: "lite_mobilenet_v2" });
+        console.log('✅ AI model loaded successfully!', model);
+        updateStatus("AI model loaded successfully!");
+      } catch (err) {
+        console.error("❌ Model loading error:", err);
+        updateStatus("Error loading AI model");
       }
+    };
 
       function drawBoxes(predictions) {
         ctx.clearRect(0, 0, overlay.width, overlay.height);
