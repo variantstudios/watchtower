@@ -597,22 +597,44 @@
       try {
         console.log('📹 Setting up camera...');
 
-        // Check if mediaDevices is supported
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          console.error('❌ Media devices not supported');
-          console.log('🔧 Trying to enable media devices...');
+        // Check if mediaDevices is supported and create fallbacks
+        if (!navigator.mediaDevices) {
+          console.log('🔧 MediaDevices not available, creating fallback...');
+          navigator.mediaDevices = {};
+        }
 
-          // Try to enable getUserMedia for older browsers
+        if (!navigator.mediaDevices.getUserMedia) {
+          console.log('🔧 getUserMedia not available, creating fallback...');
+
+          // Try to use the old getUserMedia API
           if (navigator.getUserMedia) {
-            navigator.mediaDevices = {};
             navigator.mediaDevices.getUserMedia = function (constraints) {
               return new Promise((resolve, reject) => {
                 navigator.getUserMedia(constraints, resolve, reject);
               });
             };
+          } else if (navigator.webkitGetUserMedia) {
+            navigator.mediaDevices.getUserMedia = function (constraints) {
+              return new Promise((resolve, reject) => {
+                navigator.webkitGetUserMedia(constraints, resolve, reject);
+              });
+            };
+          } else if (navigator.mozGetUserMedia) {
+            navigator.mediaDevices.getUserMedia = function (constraints) {
+              return new Promise((resolve, reject) => {
+                navigator.mozGetUserMedia(constraints, resolve, reject);
+              });
+            };
           } else {
-            throw new Error('Media devices not supported - try using Chromium browser with --use-fake-ui-for-media-stream flag');
+            throw new Error('No camera API available - try using Chromium browser with --use-fake-ui-for-media-stream flag');
           }
+        }
+
+        // Also create enumerateDevices if it doesn't exist
+        if (!navigator.mediaDevices.enumerateDevices) {
+          navigator.mediaDevices.enumerateDevices = function () {
+            return Promise.resolve([]);
+          };
         }
 
         // List available video devices for debugging
@@ -727,12 +749,15 @@
                 <div>Camera Access Required</div>
                 <div style="font-size: 14px; margin-top: 10px; color: #888;">
                   <strong>🍓 Raspberry Pi Users:</strong><br>
-                  1. Install Chromium: <code>sudo apt install chromium-browser</code><br>
-                  2. Launch with: <code>chromium-browser --use-fake-ui-for-media-stream http://10.10.10.85:3000</code><br>
-                  3. Or allow camera permissions in browser settings
+                  1. Try advanced browser: <code>./pi-launch-browser-advanced.sh</code><br>
+                  2. Or manual launch: <code>chromium-browser --use-fake-ui-for-media-stream --no-sandbox http://10.10.10.85:3000</code><br>
+                  3. Check webcam: <code>fswebcam --no-banner --device /dev/video1 test.jpg</code>
                 </div>
                 <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px; background: #00ff88; color: #000; border: none; border-radius: 5px; cursor: pointer;">
                   🔄 Retry Camera Access
+                </button>
+                <button onclick="testCameraAccess()" style="margin-top: 10px; padding: 10px 20px; background: #00ccff; color: #000; border: none; border-radius: 5px; cursor: pointer;">
+                  🧪 Test Camera API
                 </button>
               </div>
             `;
@@ -1277,6 +1302,31 @@
           }
         }
       };
+
+      // Test camera access function
+      window.testCameraAccess = function () {
+        console.log('🧪 Testing camera access...');
+        console.log('navigator.mediaDevices:', navigator.mediaDevices);
+        console.log('navigator.getUserMedia:', navigator.getUserMedia);
+        console.log('navigator.webkitGetUserMedia:', navigator.webkitGetUserMedia);
+        console.log('navigator.mozGetUserMedia:', navigator.mozGetUserMedia);
+
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          console.log('✅ MediaDevices API available');
+          navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+              console.log('✅ Camera access successful!', stream);
+              alert('✅ Camera access successful! Check console for details.');
+            })
+            .catch(err => {
+              console.error('❌ Camera access failed:', err);
+              alert('❌ Camera access failed: ' + err.message);
+            });
+        } else {
+          console.log('❌ MediaDevices API not available');
+          alert('❌ MediaDevices API not available. Try the advanced browser launch script.');
+        }
+      }
 
       // --- Helper function for VAPID key conversion ---
       function urlBase64ToUint8Array(base64String) {
