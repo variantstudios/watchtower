@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Watchtower Dashboard</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: #111;
+      color: #eee;
+    }
+
+    header {
+      text-align: center;
+      padding: 20px;
+    }
+
+    #controls {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    button {
+      margin: 5px;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    #live {
+      position: relative;
+      text-align: center;
+      display: inline-block;
+    }
+
+    video,
+    canvas {
+      max-width: 100%;
+      border-radius: 10px;
+    }
+
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    #gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 15px;
+      padding: 20px;
+    }
+
+    #gallery img {
+      width: 100%;
+      border-radius: 8px;
+      border: 2px solid #444;
+    }
+
+    .download {
+      display: block;
+      margin-top: 5px;
+      color: #0f0;
+      text-decoration: none;
+      font-size: 14px;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>📹 Watchtower Dashboard</h1>
+    <div id="controls">
+      <button id="toggleBtn">Toggle Detection Boxes</button>
+    </div>
+  </header>
+
+  <section id="live">
+    <video id="video" autoplay muted playsinline></video>
+    <canvas id="overlay"></canvas>
+  </section>
+
+  <section id="gallery"></section>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3"></script>
+  <script>
+    const video = document.getElementById("video");
+    const overlay = document.getElementById("overlay");
+    const ctx = overlay.getContext("2d");
+    const gallery = document.getElementById("gallery");
+    let showBoxes = true;
+    let model = null;
+
+    // WebSocket
+    const ws = new WebSocket(`ws://${location.host}`);
+    ws.onmessage = event => {
+      const data = JSON.parse(event.data);
+      if (data.newSnapshot) addSnapshot(data.newSnapshot);
+    };
+
+    // Camera setup
+    async function setupCamera() {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+      video.srcObject = stream;
+      await video.play();
+      video.addEventListener('loadedmetadata', () => {
+        overlay.width = video.videoWidth;
+        overlay.height = video.videoHeight;
+        loop(); // start detection loop only after metadata
+      });
+    }
+    setupCamera();
+
+    // Toggle detection boxes
+    document.getElementById("toggleBtn").addEventListener("click", async () => {
+      const res = await fetch("/toggle-boxes");
+      const data = await res.json();
+      showBoxes = data.showBoxes;
+      alert("Detection boxes are now " + (showBoxes ? "ON" : "OFF"));
+    });
+
+    // Load TensorFlow model
+    async function loadModel() {
+      model = await cocoSsd.load({ base: "lite_mobilenet_v2" });
+    }
+    loadModel();
+
+    // Draw boxes
+    function drawBoxes(preds) {
+      ctx.clearRect(0, 0, overlay.width, overlay.height);
+      if (!showBoxes) return;
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "lime";
+      ctx.font = "14px sans-serif";
+      preds.forEach(p => {
+        if (p.class === "person") {
+          const [x, y, w, h] = p.bbox;
+          ctx.strokeRect(x, y, w, h);
+          ctx.fillStyle = "lime";
+          ctx.fillText(`${p.class} ${(p.score * 100).toFixed(0)}%`, x + 2, y - 4);
+        }
+      });
+    }
+
+    // Detection loop
+    async function loop() {
+      if (!model) return requestAnimationFrame(loop);
+      const predictions = await model.detect(video);
+      drawBoxes(predictions);
+
+      const canvasTmp = document.createElement("canvas");
+      canvasTmp.width = video.videoWidth;
+      canvasTmp.height = video.videoHeight;
+      const cctx = canvasTmp.getContext("2d");
+      cctx.drawImage(video, 0, 0, canvasTmp.width, canvasTmp.height);
+
+      const personDetected = predictions.some(p => p.class === "person");
+      ws.send(JSON.stringify({ imageData: canvasTmp.toDataURL("image/jpeg", 0.8), personDetected }));
+
+      requestAnimationFrame(loop);
+    }
+
+    // Gallery functions
+    function addSnapshot(file) {
+      const div = document.createElement("div");
+      const img = document.createElement("img");
+      img.src = `/recordings/${file}`;
+      const link = document.createElement("a");
+      link.href = `/recordings/${file}`;
+      link.className = "download";
+      link.download = file;
+      link.textContent = "Download";
+      div.appendChild(img);
+      div.appendChild(link);
+      gallery.prepend(div);
+    }
+
+    async function loadGallery() {
+      const res = await fetch("/recordings.json");
+      const files = await res.json();
+      files.forEach(addSnapshot);
+    }
+    loadGallery();
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Watchtower Recordings</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #111;
+      color: #eee;
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 15px;
+    }
+
+    .grid img {
+      width: 100%;
+      border-radius: 8px;
+      border: 2px solid #444;
+    }
+
+    .download {
+      display: block;
+      margin-top: 5px;
+      color: #0f0;
+      text-decoration: none;
+      font-size: 14px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>📁 Watchtower Recordings</h1>
+  <div class="grid" id="gallery"></div>
+
+  <script>
+    const ws = new WebSocket(`ws://${location.host}`);
+    const container = document.getElementById("gallery");
+
+    ws.onmessage = event => {
+      const data = JSON.parse(event.data);
+      if (data.newSnapshot) {
+        addSnapshot(data.newSnapshot);
+      }
+    };
+
+    function addSnapshot(file) {
+      const div = document.createElement("div");
+      const img = document.createElement("img");
+      img.src = `/recordings/${file}`;
+      const link = document.createElement("a");
+      link.href = `/recordings/${file}`;
+      link.className = "download";
+      link.download = file;
+      link.textContent = "Download";
+      div.appendChild(img);
+      div.appendChild(link);
+      container.prepend(div); // add newest on top
+    }
+
+    async function loadGallery() {
+      const res = await fetch("/recordings.json");
+      const files = await res.json();
+      files.forEach(addSnapshot);
+    }
+    loadGallery();
+  </script>
+</body>
+
+</html>

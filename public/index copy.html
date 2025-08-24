@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Watchtower Live</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: #111;
+      color: #eee;
+      text-align: center;
+    }
+
+    video,
+    canvas {
+      max-width: 100%;
+      border-radius: 10px;
+    }
+
+    #controls {
+      margin-top: 10px;
+    }
+
+    button {
+      margin: 5px;
+      padding: 8px 16px;
+      font-size: 14px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>📹 Watchtower Live</h1>
+  <video id="video" autoplay muted playsinline></video>
+  <canvas id="overlay"></canvas>
+
+  <div id="controls">
+    <button id="toggleBtn">Toggle Detection Boxes</button>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3"></script>
+  <script>
+    const video = document.getElementById("video");
+    const overlay = document.getElementById("overlay");
+    const ctx = overlay.getContext("2d");
+    const ws = new WebSocket(`ws://${location.host}`);
+
+    let showBoxes = true;
+
+    // --- webcam setup ---
+    async function setupCamera() {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+      video.srcObject = stream;
+      await video.play();
+      overlay.width = video.videoWidth;
+      overlay.height = video.videoHeight;
+    }
+    setupCamera();
+
+    // --- toggle boxes ---
+    document.getElementById("toggleBtn").addEventListener("click", async () => {
+      const res = await fetch("/toggle-boxes");
+      const data = await res.json();
+      showBoxes = data.showBoxes;
+      alert("Detection boxes are now " + (showBoxes ? "ON" : "OFF"));
+    });
+
+    // --- TensorFlow person detection ---
+    let model = null;
+    async function loadModel() {
+      model = await cocoSsd.load({ base: "lite_mobilenet_v2" });
+    }
+    loadModel();
+
+    function drawBoxes(preds) {
+      ctx.clearRect(0, 0, overlay.width, overlay.height);
+      if (!showBoxes) return;
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "lime";
+      ctx.font = "14px sans-serif";
+      preds.forEach(p => {
+        if (p.class === "person") {
+          const [x, y, w, h] = p.bbox;
+          ctx.strokeRect(x, y, w, h);
+          ctx.fillStyle = "lime";
+          ctx.fillText(`${p.class} ${(p.score * 100).toFixed(0)}%`, x + 2, y - 4);
+        }
+      });
+    }
+
+    // --- capture loop ---
+    async function loop() {
+      if (!model) return requestAnimationFrame(loop);
+
+      const predictions = await model.detect(video);
+      drawBoxes(predictions);
+
+      // send frame to server
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const cctx = canvas.getContext("2d");
+      cctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      ws.send(JSON.stringify({ imageData: canvas.toDataURL("image/jpeg", 0.8) }));
+
+      requestAnimationFrame(loop);
+    }
+    loop();
+
+    // --- browser push subscription ---
+    async function subscribe() {
+      if ('serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.register('/sw.js');
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array("<YOUR_PUBLIC_VAPID_KEY>")
+        });
+        await fetch("/subscribe", { method: "POST", body: JSON.stringify(sub), headers: { "Content-Type": "application/json" } });
+      }
+    }
+    subscribe();
+
+    function urlBase64ToUint8Array(base64String) {
+      const padding = '='.repeat((4 - base64String.length % 4) % 4);
+      const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+      const rawData = atob(base64);
+      return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+    }
+  </script>
+</body>
+
+</html>
